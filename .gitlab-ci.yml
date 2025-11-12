@@ -1,0 +1,237 @@
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  #TEST_PORT: "10510"
+  #PROD_PORT: "10511"
+
+stages:
+  - build
+  - stop
+  - deploy
+  - test
+
+build_test:
+  stage: build
+  image: docker:20.10.16
+  tags:
+    - prod-runner
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE == "push"
+  environment:
+    name: test
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo $CI_PIPELINE_SOURCE
+  script:
+    - docker build
+        --build-arg DWH_LOGIN=$DWH_LOGIN
+        --build-arg DWH_PASS=$DWH_PASS
+        --build-arg DWH_IP=$DWH_IP
+        --build-arg DWH_PORT=$DWH_PORT
+        --build-arg DWH_SERVICE=$DWH_SERVICE
+        --build-arg TABEL_LOGIN=$TABEL_LOGIN
+        --build-arg TABEL_PASS=$TABEL_PASS
+        --build-arg TABEL_IP=$TABEL_IP
+        --build-arg TABEL_PORT=$TABEL_PORT
+        --build-arg TABEL_SERVICE=$TABEL_SERVICE
+        --build-arg SERVICE_PORT=$SERVICE_PORT
+        --build-arg DEPLOY_SRVR_IP=$DEPLOY_SRVR_IP
+        --build-arg DISTRIBUTION_PORT=$DISTRIBUTION_PORT
+        --build-arg TG_BOT_TOKEN=$TG_BOT_TOKEN
+        --build-arg TG_CHAT_ID=$TG_CHAT_ID
+        --build-arg TG_TOPIC_ID=$TG_TOPIC_ID
+        -t git.magnum.kz:4567/babaev/promo_distribution_reports:test .
+    - docker push git.magnum.kz:4567/babaev/promo_distribution_reports:test
+
+stop_test:
+  tags:
+    - prod-runner
+  stage: stop
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE == "push"
+      when: manual
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker stop promo_distribution_reports_test"
+  retry: 2 #sometimes ssh stucks idk why
+
+deploy_test:
+  tags:
+    - prod-runner
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE == "push"
+  needs: ["stop_test"]
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker pull git.magnum.kz:4567/babaev/promo_distribution_reports:test"
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker run --name promo_distribution_reports_test --rm -dp 10510:10503 git.magnum.kz:4567/babaev/promo_distribution_reports:test"
+
+test_test:
+  tags:
+    - prod-runner
+  stage: test
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE == "push"
+  needs: ["deploy_test"]
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker exec promo_distribution_reports_test python3 /app/api_service_reports_tests.py"
+
+build_prod:
+  stage: build
+  image: docker:20.10.16
+  tags:
+    - prod-runner
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  environment:
+    name: prod
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo $CI_PIPELINE_SOURCE
+  script:
+    - docker build
+        --build-arg DWH_LOGIN=$DWH_LOGIN
+        --build-arg DWH_PASS=$DWH_PASS
+        --build-arg DWH_IP=$DWH_IP
+        --build-arg DWH_PORT=$DWH_PORT
+        --build-arg DWH_SERVICE=$DWH_SERVICE
+        --build-arg TABEL_LOGIN=$TABEL_LOGIN
+        --build-arg TABEL_PASS=$TABEL_PASS
+        --build-arg TABEL_IP=$TABEL_IP
+        --build-arg TABEL_PORT=$TABEL_PORT
+        --build-arg TABEL_SERVICE=$TABEL_SERVICE
+        --build-arg SERVICE_PORT=$SERVICE_PORT
+        --build-arg DEPLOY_SRVR_IP=$DEPLOY_SRVR_IP
+        --build-arg DISTRIBUTION_PORT=$DISTRIBUTION_PORT
+        --build-arg TG_BOT_TOKEN=$TG_BOT_TOKEN
+        --build-arg TG_CHAT_ID=$TG_CHAT_ID
+        --build-arg TG_TOPIC_ID=$TG_TOPIC_ID
+        -t git.magnum.kz:4567/babaev/promo_distribution_reports .
+    - docker push git.magnum.kz:4567/babaev/promo_distribution_reports:latest
+
+stop_prod:
+  tags:
+    - prod-runner
+  stage: stop
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+      when: manual
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker stop promo_distribution_reports_latest"
+
+deploy_prod:
+  tags:
+    - prod-runner
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  needs: ["stop_prod"]
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker pull git.magnum.kz:4567/babaev/promo_distribution_reports:latest"
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker run --name promo_distribution_reports_latest --rm -dp 10511:10503 --privileged git.magnum.kz:4567/babaev/promo_distribution_reports:latest"
+
+
+test_prod:
+  tags:
+    - prod-runner
+  stage: test
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
+  needs: ["deploy_prod"]
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker exec promo_distribution_reports_latest python3 /app/api_service_reports_tests.py"
+
+build_preprod:
+  stage: build
+  image: docker:20.10.16
+  tags:
+    - prod-runner
+  rules:
+    - if: $CI_COMMIT_BRANCH == "preprod" && $CI_PIPELINE_SOURCE == "push"
+  environment:
+    name: preprod
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo $CI_PIPELINE_SOURCE
+  script:
+    - docker build
+        --build-arg DWH_LOGIN=$DWH_LOGIN
+        --build-arg DWH_PASS=$DWH_PASS
+        --build-arg DWH_IP=$DWH_IP
+        --build-arg DWH_PORT=$DWH_PORT
+        --build-arg DWH_SERVICE=$DWH_SERVICE
+        --build-arg TABEL_LOGIN=$TABEL_LOGIN
+        --build-arg TABEL_PASS=$TABEL_PASS
+        --build-arg TABEL_IP=$TABEL_IP
+        --build-arg TABEL_PORT=$TABEL_PORT
+        --build-arg TABEL_SERVICE=$TABEL_SERVICE
+        --build-arg SERVICE_PORT=$SERVICE_PORT
+        --build-arg DEPLOY_SRVR_IP=$DEPLOY_SRVR_IP
+        --build-arg DISTRIBUTION_PORT=$DISTRIBUTION_PORT
+        --build-arg TG_BOT_TOKEN=$TG_BOT_TOKEN
+        --build-arg TG_CHAT_ID=$TG_CHAT_ID
+        --build-arg TG_TOPIC_ID=$TG_TOPIC_ID
+        -t git.magnum.kz:4567/babaev/promo_distribution_reports:preprod .
+    - docker push git.magnum.kz:4567/babaev/promo_distribution_reports:preprod
+
+stop_preprod:
+  tags:
+    - prod-runner
+  stage: stop
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "preprod" && $CI_PIPELINE_SOURCE == "push"
+      when: manual
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker stop promo_distribution_reports_preprod"
+
+deploy_preprod:
+  tags:
+    - prod-runner
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "preprod" && $CI_PIPELINE_SOURCE == "push"
+  needs: ["stop_preprod"]
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker pull git.magnum.kz:4567/babaev/promo_distribution_reports:preprod"
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker run --name promo_distribution_reports_preprod --rm -dp 10512:10503 git.magnum.kz:4567/babaev/promo_distribution_reports:preprod"
+
+test_preprod:
+  tags:
+    - prod-runner
+  stage: test
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "preprod" && $CI_PIPELINE_SOURCE == "push"
+  needs: ["deploy_preprod"]
+  script:
+    - chmod og= $SSH_PRIVATE_KEY
+    - apk update && apk add openssh-client
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $DEPLOY_SRVR_USER@$DEPLOY_SRVR_IP "docker exec promo_distribution_reports_preprod python3 /app/api_service_reports_tests.py"

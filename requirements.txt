@@ -1,0 +1,10 @@
+pandas
+numpy
+psycopg2-binary
+python-dotenv
+openpyxl==3.0.10
+XlsxWriter
+fastapi
+uvicorn
+requests
+hypercorn

@@ -1,0 +1,27 @@
+cplex.exe
+dbpass.txt
+TestPlaces7.csv
+results.csv
+*.log
+Main.py
+results_light.csv
+report.xlsx
+.vscode/settings.json
+bat_store_context.csv
+test.csv
+test2.csv
+test
+.ipynb_checkpoints/
+__pycache__/MagnumDB.cpython-39.pyc
+__pycache__/
+*.zip
+pg_recomedations.csv
+temp.csv
+bad_sql.txt
+bad sql.txt
+bad_context.csv
+to_load.csv
+.env
+custom_reports/__pycache__
+start.bat
+test.py
