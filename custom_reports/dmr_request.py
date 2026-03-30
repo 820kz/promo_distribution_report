@@ -280,7 +280,7 @@ def sexy_xlsx(table: pd.DataFrame, iol):
 
     # Кинуть границы динамически на все магазины
     shops_bordering(cities = ['АФ', 'ЕКФ','КПФ','ФКС'], color = 'ccffff', shop_filter = True, target_columns = None)
-    shops_bordering(cities = ['АСТ'], color = 'fcdbc0', shop_filter = True, target_columns = None)
+    shops_bordering(cities = ['АСТ', 'АСФ'], color = 'fcdbc0', shop_filter = True, target_columns = None)
     shops_bordering(cities = ['КФ'], color = 'ccecff', shop_filter = True, target_columns = None)
     shops_bordering(cities = ['ШФ'], color = 'ffff99', shop_filter = True, target_columns = None)
     shops_bordering(cities = ['ТКФ'], color = '92d050', shop_filter = True, target_columns = None)
@@ -452,6 +452,8 @@ def get_dmr_data(promo_id, user_name, limit):
                 prefix = 'AD'
             elif prefix.split()[1] == 'АСТ':
                 prefix = 'AE'
+            elif prefix.split()[1] == 'АСФ':
+                prefix = 'AE'
             elif prefix.split()[1] == 'КФ':
                 prefix = 'AF'
             elif prefix.split()[1] == 'ШФ':
@@ -483,6 +485,7 @@ def get_dmr_data(promo_id, user_name, limit):
         'ФКС': 'Исключить ТК Алматы',
         'ЕКФ': 'Исключить ТК Алматы',
         'АСТ': 'Исключить ТК Астаны',
+        'АСФ': 'Исключить ТК Астаны',
         'УКФ': 'Исключить ТК Усть-Каменогорск',
         'ШФ': 'Исключить ТК Шымкент',
         'ТКФ': 'Исключить ТК Талдыкорган',
@@ -557,6 +560,7 @@ def get_dmr_data(promo_id, user_name, limit):
                 'ЕКФ': 'Алматы',
                 'КПФ': 'Алматы',
                 'АСТ': 'Астана',
+                'АСФ': 'Астана',
                 'КФ': 'Караганда',
                 'ШФ': 'Шымкент',
                 'ТКФ': 'Талдыкорган',
